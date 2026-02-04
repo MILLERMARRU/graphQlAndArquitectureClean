@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: graphql-mysql
+    restart: unless-stopped
+    ports:
+      - "3303:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: graphql_db
+      MYSQL_USER: graphql_user
+      MYSQL_PASSWORD: graphql_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - graphql-network
+    command: --default-authentication-plugin=mysql_native_password
+
+  # phpMyAdmin - UI para MySQL (opcional)
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: graphql-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root123
+    depends_on:
+      - mysql
+    networks:
+      - graphql-network
+
+  # Aplicación Node.js (opcional, para desarrollo local)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: graphql-app
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: graphql_db
+      DB_USER: graphql_user
+      DB_PASSWORD: graphql_pass
+    volumes:
+      - ./src:/app/src
+      - /app/node_modules
+    depends_on:
+      - mysql
+    networks:
+      - graphql-network
+    command: npm run dev
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  graphql-network:
+    driver: bridge
